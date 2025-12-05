@@ -6,9 +6,15 @@ import requests
 import os
 
 # -------------------------------
+# HF model + dataset links
+# -------------------------------
+MODEL_REPO_URL = "https://huggingface.co/alanjoshua2005/spam-sms-india-onnx"
+DATASET_REPO_URL = "https://huggingface.co/datasets/alanjoshua2005/india-spam-sms"
+
+# -------------------------------
 # Download ONNX model to local
 # -------------------------------
-onnx_model_url = "https://huggingface.co/alanjoshua2005/spam-sms-india-onnx/resolve/main/bert_sms_detector.onnx"
+onnx_model_url = f"{MODEL_REPO_URL}/resolve/main/bert_sms_detector.onnx"
 onnx_model_path = "bert_sms_detector.onnx"
 
 @st.cache_resource
@@ -19,7 +25,7 @@ def download_model():
     return onnx_model_path
 
 # -------------------------------
-# Load tokenizer + ONNX session
+# Load tokenizer + ONNX runtime
 # -------------------------------
 @st.cache_resource
 def load_resources():
@@ -34,14 +40,22 @@ tokenizer, session = load_resources()
 # Streamlit UI
 # -------------------------------
 st.title("📩 SMS Spam Detector (ONNX)")
-st.write("Enter any SMS text below and the model will detect whether it's **Spam** or **Ham**.")
+st.write("This app uses a BERT model fine-tuned on an **Indian SMS Spam** dataset.")
 
+# Display model + dataset links
+st.markdown("### Resources")
+st.markdown(f"**Model Repository:** [spam-sms-india-onnx]({MODEL_REPO_URL})")
+st.markdown(f"**Dataset Repository:** [india-spam-sms]({DATASET_REPO_URL})")
+st.write("---")
+
+# Input box
 user_input = st.text_area("Enter SMS text:", height=120)
 
 if st.button("Predict"):
     if user_input.strip() == "":
         st.warning("Please type a message.")
     else:
+        # Tokenize
         inputs = tokenizer(
             user_input,
             return_tensors="np",
@@ -55,6 +69,7 @@ if st.button("Predict"):
             "attention_mask": inputs["attention_mask"].astype(np.int64)
         }
 
+        # Run ONNX inference
         outputs = session.run(None, onnx_inputs)
         logits = outputs[0]
         predicted_class = int(np.argmax(logits, axis=1)[0])
